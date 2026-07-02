@@ -3,9 +3,14 @@
 ## Purpose
 
 A Python CLI script that crawls a live framework/library documentation website
-and converts it into a Claude Agent Skill: a `SKILL.md` router plus a
-`references/` folder of markdown files, following the standard
-progressive-disclosure skill pattern.
+and converts it into an Agent Skill: a `SKILL.md` router plus a `references/`
+folder of markdown files, following the standard progressive-disclosure skill
+pattern. The output is plain markdown + YAML frontmatter with no
+vendor-specific runtime dependency — any agent/tool that can read
+instructions from files (Claude, or otherwise) can consume the generated
+skill. The generator itself also has no required LLM/API dependency; it does
+pure HTML→markdown conversion, not AI-driven rewriting, so it produces
+deterministic output and runs with no API key.
 
 ## Scope
 
@@ -22,7 +27,7 @@ sibling sections automatically.
 ## CLI Interface
 
 ```
-doctoskill.py <start-url> --output <dir> --name <skill-name> [--max-pages N] [--delay SECONDS]
+doctoskill.py <start-url> --output <dir> --name <skill-name> [--max-pages N] [--delay SECONDS] [--config <file>] [--skip-scrape] [--zip]
 ```
 
 - `start-url` (required, positional) — first page of the docs to crawl.
@@ -31,6 +36,49 @@ doctoskill.py <start-url> --output <dir> --name <skill-name> [--max-pages N] [--
   start URL's domain + path (slugified).
 - `--max-pages` — safety cap on number of pages crawled. Default: 500.
 - `--delay` — seconds to wait between requests. Default: 0.5.
+- `--config` — optional path to a JSON override file (see Override Config
+  below). Omit for fully automatic zero-config operation.
+- `--skip-scrape` — reuse cached raw page data from a previous run instead
+  of re-crawling (see Caching below); jump straight to convert/assemble.
+- `--zip` — after assembling the skill folder, also produce a `.zip` of it
+  alongside the output directory, for tools that expect a packaged upload.
+
+## Override Config (escape hatch)
+
+Auto-discovery (nav-tree → sitemap → path-prefix crawl) is the default and
+requires no configuration. For sites where auto-discovery guesses wrong, an
+optional `--config <file>` JSON file can override specific pipeline
+decisions:
+
+```json
+{
+  "include": ["/docs/", "/guide/"],
+  "exclude": ["/docs/changelog/"],
+  "content_selector": "main.article-content",
+  "nav_selector": "nav.sidebar"
+}
+```
+
+All fields are optional; any field present overrides the corresponding
+auto-detected behavior, fields absent keep automatic detection. This exists
+purely as a fallback for uncooperative sites — it is never required for a
+normal run.
+
+## Caching
+
+Raw fetched page HTML is cached to disk under `<output>/<name>/.cache/`,
+keyed by URL, on every crawl. `--skip-scrape` reuses this cache instead of
+re-fetching, so the convert/assemble steps (or a changed `--config`) can be
+re-run quickly without hitting the target site again. The cache is
+per-skill-name and is not committed as part of the skill output (excluded
+from the `.zip`).
+
+## Zip Packaging
+
+With `--zip`, after the skill folder is assembled, it's archived to
+`<output>/<name>.zip` (skill folder contents at the zip root, `.cache/`
+excluded) for tools/workflows that expect a single uploadable package rather
+than a directory.
 
 ## Pipeline
 
@@ -40,8 +88,10 @@ doctoskill.py <start-url> --output <dir> --name <skill-name> [--max-pages N] [--
    disallow rules during discovery/crawl.
 
 2. **Discovery** — determine the full set of pages to crawl and, where
-   possible, their hierarchy. Strategies are tried in order, first success
-   wins:
+   possible, their hierarchy. If `--config` supplies `include`/`exclude`
+   patterns or a `nav_selector`, those take precedence over the
+   corresponding auto-detection step below. Otherwise, strategies are tried
+   in order, first success wins:
    - **Nav-tree parsing**: look for a site-generator-specific TOC/sidebar
      structure and parse it directly. This is the preferred path because it
      gives both the page list *and* the true hierarchy (which often does not
@@ -62,15 +112,18 @@ doctoskill.py <start-url> --output <dir> --name <skill-name> [--max-pages N] [--
      segments (or a single flat folder if the site uses flat URLs, as
      detected by all discovered pages sharing one directory).
 
-3. **Fetch** — for each discovered page: plain HTTP GET + parse. If the
-   resulting content looks like a JS-rendering shell (body text below a
-   minimum length threshold, or missing an expected main-content selector),
-   retry that single page with a headless browser (Playwright) render.
-   Playwright is imported lazily, only the first time it's actually needed.
+3. **Fetch** — for each discovered page: plain HTTP GET + parse, or read from
+   cache if `--skip-scrape`. If the resulting content looks like a
+   JS-rendering shell (body text below a minimum length threshold, or
+   missing an expected main-content selector), retry that single page with a
+   headless browser (Playwright) render. Playwright is imported lazily, only
+   the first time it's actually needed. Raw fetched HTML is written to the
+   cache (see Caching) as each page is fetched.
 
-4. **Convert** — strip nav/header/footer/sidebar/ad/boilerplate elements,
-   convert the remaining main-content HTML to clean markdown, one page per
-   file.
+4. **Convert** — strip nav/header/footer/sidebar/ad/boilerplate elements
+   (using `content_selector` from `--config` if supplied, otherwise
+   auto-detected), convert the remaining main-content HTML to clean
+   markdown, one page per file.
 
 5. **Assemble skill**:
    - Reference files are placed at `references/<hierarchy-path>/<page>.md`,
@@ -81,10 +134,11 @@ doctoskill.py <start-url> --output <dir> --name <skill-name> [--max-pages N] [--
      title).
    - `SKILL.md` is generated with:
      - YAML frontmatter (`name`, `description` — what the framework is and
-       when this skill is relevant)
+       when this skill is relevant) using plain, vendor-neutral fields so
+       the file works as-is across different agent tools' skill conventions
      - A short overview of the framework/library
      - An index mapping topics/sections to their `references/*.md` paths,
-       so Claude can decide which reference file(s) to open for a given
+       so an agent can decide which reference file(s) to open for a given
        question without loading everything upfront
 
 ## Error Handling
@@ -98,6 +152,8 @@ doctoskill.py <start-url> --output <dir> --name <skill-name> [--max-pages N] [--
   clear error.
 - A summary is printed at the end: pages found, converted, skipped/failed,
   discovery strategy used.
+- If `--skip-scrape` is given but no cache exists yet for `<name>`, fall back
+  to a normal crawl (with a warning) rather than failing.
 
 ## Dependencies
 
