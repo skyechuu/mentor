@@ -12,6 +12,15 @@ skill. The generator itself also has no required LLM/API dependency; it does
 pure HTML→markdown conversion, not AI-driven rewriting, so it produces
 deterministic output and runs with no API key.
 
+## Non-Goals
+
+This is intentionally a small, single-purpose script, not a platform.
+Explicitly out of scope: GitHub repo / PDF / video ingestion, multi-platform
+export formats (Gemini/OpenAI/LangChain/etc.), an MCP server, agent-specific
+installers, or a plugin/preset ecosystem. The value proposition is
+simplicity and auditability — one script, one input type (a doc site URL),
+one output format (a plain markdown skill folder) — not feature breadth.
+
 ## Scope
 
 One skill = one crawl root. A "doc site" for this tool means whatever
@@ -42,6 +51,13 @@ doctoskill.py <start-url> --output <dir> --name <skill-name> [--max-pages N] [--
   of re-crawling (see Caching below); jump straight to convert/assemble.
 - `--zip` — after assembling the skill folder, also produce a `.zip` of it
   alongside the output directory, for tools that expect a packaged upload.
+- `--enhance` — optional post-processing pass using the Anthropic API to
+  improve `SKILL.md` (pick 5-10 representative code examples across the
+  crawled pages, sharpen the overview/index copy). Off by default; requires
+  `ANTHROPIC_API_KEY`. The deterministic HTML→markdown conversion output is
+  untouched either way — this only rewrites `SKILL.md` itself, so the tool's
+  core guarantee (works with no API key, no vendor lock-in) holds without
+  the flag.
 
 ## Override Config (escape hatch)
 
@@ -92,6 +108,14 @@ than a directory.
    patterns or a `nav_selector`, those take precedence over the
    corresponding auto-detection step below. Otherwise, strategies are tried
    in order, first success wins:
+   - **llms.txt**: check for `llms-full.txt` then `llms.txt` at the domain
+     root. When present, this is a pre-curated, LLM-ready markdown document
+     maintained by the site itself — use it directly instead of
+     scraping/parsing HTML at all. Skips discovery, fetch, and convert
+     entirely for whatever it covers; only Assemble (step 5, splitting it
+     into reference files) still runs. If it only partially covers the
+     requested path prefix, fall through to the remaining strategies for the
+     rest.
    - **Nav-tree parsing**: look for a site-generator-specific TOC/sidebar
      structure and parse it directly. This is the preferred path because it
      gives both the page list *and* the true hierarchy (which often does not
@@ -161,6 +185,8 @@ than a directory.
 - `beautifulsoup4` — HTML parsing (nav-tree parsing, boilerplate stripping)
 - `markdownify` — HTML → Markdown conversion
 - `playwright` — headless-browser fallback for JS-rendered pages (lazy
+  import, optional extra)
+- `anthropic` — only imported/required when `--enhance` is passed (lazy
   import, optional extra)
 
 ## Testing Approach
