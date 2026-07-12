@@ -7,12 +7,21 @@ from urllib.parse import urlsplit
 from doctoskill.slugify import slugify
 
 
-def cache_dir_for(output_dir, start_url: str) -> Path:
-    """Return a crawl cache outside the generated skill/output directory."""
+def _cache_dir_for_root(output_dir, start_url: str, root_name: str) -> Path:
     output_path = Path(output_dir).resolve()
     digest = hashlib.sha256(start_url.encode("utf-8")).hexdigest()[:16]
     host = slugify(urlsplit(start_url).netloc)
-    return output_path.parent / ".doctoskill-cache" / slugify(output_path.name) / f"{host}-{digest}"
+    return output_path.parent / root_name / slugify(output_path.name) / f"{host}-{digest}"
+
+
+def cache_dir_for(output_dir, start_url: str) -> Path:
+    """Return Mentor's crawl cache outside the generated output directory."""
+    return _cache_dir_for_root(output_dir, start_url, ".mentor-cache")
+
+
+def legacy_cache_dir_for(output_dir, start_url: str) -> Path:
+    """Return the pre-Mentor cache path for one-time migration."""
+    return _cache_dir_for_root(output_dir, start_url, ".doctoskill-cache")
 
 
 class PageCache:

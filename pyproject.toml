@@ -1,7 +1,7 @@
 [project]
-name = "doctoskill"
-version = "0.2.1"
-description = "Convert a documentation website into a vendor-neutral Agent Skill"
+name = "mentor"
+version = "0.3.0"
+description = "Teach agents how to do stuff by turning documentation into Agent Skills"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
@@ -17,6 +17,7 @@ enhance = ["anthropic>=0.25"]
 dev = ["pytest>=7.4"]
 
 [project.scripts]
+mentor = "doctoskill.cli:main"
 doctoskill = "doctoskill.cli:main"
 
 [build-system]
@@ -24,7 +25,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["doctoskill*"]
+include = ["mentor*", "doctoskill*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

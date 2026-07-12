@@ -63,7 +63,7 @@ def test_main_uses_llms_txt_without_page_fetches(tmp_path, monkeypatch, capsys):
     ) == 0
     assert (tmp_path / "docs" / "references" / "start.md").exists()
     progress = capsys.readouterr().err
-    assert "[doctoskill] Starting crawl:" in progress
+    assert "[mentor] Starting crawl:" in progress
     assert "Using llms.txt discovery: 2 sections found." in progress
     assert "Finished successfully." in progress
 
@@ -86,7 +86,7 @@ def test_quiet_suppresses_progress_but_keeps_summary(tmp_path, monkeypatch, caps
         ]
     ) == 0
     captured = capsys.readouterr()
-    assert "[doctoskill]" not in captured.err
+    assert "[mentor]" not in captured.err
     assert "Pages converted: 1" in captured.out
 
 

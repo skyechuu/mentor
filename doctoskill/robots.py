@@ -5,7 +5,7 @@ from typing import Optional
 
 import requests
 
-DEFAULT_USER_AGENT = "DocToSkillBot/0.1"
+DEFAULT_USER_AGENT = "Mentor/0.3"
 
 
 @dataclass

@@ -44,7 +44,7 @@ def _render_with_playwright(url: str, timeout: float = 10.0) -> str:
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
         raise HeadlessBrowserUnavailable(
-            "Page appears to require JavaScript. Install doctoskill[playwright] "
+            "Page appears to require JavaScript. Install mentor[playwright] "
             "and run `playwright install chromium`."
         ) from exc
 

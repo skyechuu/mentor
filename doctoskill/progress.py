@@ -9,4 +9,4 @@ class ProgressReporter:
 
     def log(self, message: str) -> None:
         if self.enabled:
-            print(f"[doctoskill] {message}", file=sys.stderr, flush=True)
+            print(f"[mentor] {message}", file=sys.stderr, flush=True)

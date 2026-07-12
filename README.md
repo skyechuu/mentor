@@ -1,13 +1,13 @@
-# DocToSkill
+# Mentor
 
-DocToSkill crawls a documentation website and converts it into a portable Agent
-Skill: one `SKILL.md` router plus progressively disclosed Markdown files under
-`references/`. The default pipeline is deterministic and does not require an API
-key.
+Mentor teaches agents how to do stuff. It crawls a documentation website and
+turns it into a portable Agent Skill: one `SKILL.md` router plus progressively
+disclosed Markdown files under `references/`. The default pipeline is
+deterministic and does not require an API key.
 
 ## Install
 
-DocToSkill requires Python 3.9 or newer.
+Mentor requires Python 3.9 or newer.
 
 ```bash
 python3 -m pip install -e .
@@ -23,22 +23,25 @@ playwright install chromium
 ## Use
 
 ```bash
-python3 -m doctoskill https://docs.example.com/manual/index.html \
+python3 -m mentor https://docs.example.com/manual/index.html \
   --output ./skills \
   --name example-manual \
   --zip
 ```
 
-Run `python3 -m doctoskill --help` for all options. Discovery tries `llms-full.txt`
+Run `python3 -m mentor --help` for all options. Discovery tries `llms-full.txt`
 or `llms.txt`, a DocFX or generic navigation tree, `sitemap.xml`, and finally a
 same-path breadth-first crawl. Raw HTML is cached inside the generated skill's
-cache outside the generated output under a sibling `.doctoskill-cache/` directory;
+cache outside the generated output under a sibling `.mentor-cache/` directory;
 use `--skip-scrape` for an offline conversion rerun. Generated skill folders and
 ZIP archives never contain crawl caches, `.DS_Store`, `._*`, or `__MACOSX` files.
 
 Progress is printed to stderr throughout discovery, crawling, conversion, and
 packaging so long runs remain visibly active. Pass `--quiet` to suppress these
 messages in scripts while keeping warnings, errors, and the final summary.
+
+The former `doctoskill` command and `python3 -m doctoskill` remain available as
+backward-compatible aliases.
 
 For sites with unusual markup, pass a JSON config:
 

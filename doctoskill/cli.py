@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 from typing import Optional
 
 from doctoskill.assemble import assemble_skill
-from doctoskill.cache import PageCache, cache_dir_for
+from doctoskill.cache import PageCache, cache_dir_for, legacy_cache_dir_for
 from doctoskill.config import load_config
 from doctoskill.convert import convert_page
 from doctoskill.crawler import crawl_path_prefix
@@ -27,8 +27,11 @@ from doctoskill.zippack import zip_skill_folder
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="doctoskill",
-        description="Convert a documentation website into an Agent Skill.",
+        prog="mentor",
+        description=(
+            "Teach agents how to do stuff by turning documentation websites "
+            "into Agent Skills."
+        ),
     )
     parser.add_argument("start_url", help="First page of the docs to crawl")
     parser.add_argument("--output", default="./skills", help="Parent output directory")
@@ -112,6 +115,11 @@ def _prepare_cache(output_dir, start_url: str, legacy_skill_names: list[str]) ->
     """Use the external cache location and migrate pre-0.2 in-skill caches."""
     output_path = Path(output_dir)
     cache_dir = cache_dir_for(output_path, start_url)
+    legacy_external_dir = legacy_cache_dir_for(output_path, start_url)
+    if legacy_external_dir.exists():
+        cache_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(legacy_external_dir, cache_dir, dirs_exist_ok=True)
+        shutil.rmtree(legacy_external_dir)
     for legacy_skill_name in dict.fromkeys(legacy_skill_names):
         legacy_dir = output_path / legacy_skill_name / ".cache"
         if legacy_dir.exists():

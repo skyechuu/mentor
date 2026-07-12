@@ -24,7 +24,7 @@ def enhance_skill(skill_dir, client=None) -> None:
             import anthropic
         except ImportError as exc:
             raise RuntimeError(
-                "--enhance requires the optional dependency: pip install 'doctoskill[enhance]'"
+                "--enhance requires the optional dependency: pip install 'mentor[enhance]'"
             ) from exc
         client = anthropic.Anthropic()
 
