@@ -62,7 +62,7 @@ def test_main_uses_llms_txt_without_page_fetches(tmp_path, monkeypatch, capsys):
         ["https://example.com/docs/index.html", "--output", str(tmp_path), "--name", "docs"]
     ) == 0
     assert (tmp_path / "docs" / "references" / "start.md").exists()
-    assert (tmp_path / "docs.zip").exists()
+    assert not (tmp_path / "docs.zip").exists()
     progress = capsys.readouterr().err
     assert "[mentor] Starting crawl:" in progress
     assert "Using llms.txt discovery: 2 sections found." in progress
@@ -84,7 +84,6 @@ def test_quiet_suppresses_progress_but_keeps_summary(tmp_path, monkeypatch, caps
             "--name",
             "docs",
             "--quiet",
-            "--no-zip",
         ]
     ) == 0
     captured = capsys.readouterr()

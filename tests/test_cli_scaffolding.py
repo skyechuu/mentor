@@ -25,7 +25,7 @@ def test_mentor_public_version_matches_compatibility_package():
     import mentor
     import doctoskill
 
-    assert mentor.__version__ == doctoskill.__version__ == "0.3.2"
+    assert mentor.__version__ == doctoskill.__version__ == "0.3.3"
 
 
 def test_converted_page_defaults():

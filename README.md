@@ -132,7 +132,7 @@ Skill written to: skills/example-2.0
 ```text
 mentor START_URL [--output DIR] [--name NAME] [--max-pages N]
                  [--delay SECONDS] [--config FILE] [--skip-scrape]
-                 [--zip | --no-zip] [--enhance] [--quiet]
+                 [--zip] [--enhance] [--quiet]
 ```
 
 | Argument | Default | Description |
@@ -144,8 +144,7 @@ mentor START_URL [--output DIR] [--name NAME] [--max-pages N]
 | `--delay SECONDS` | `0.5` | Delay between requests made by fallback link crawling. Must be zero or greater. |
 | `--config FILE` | None | JSON override file for include/exclude rules and CSS selectors. |
 | `--skip-scrape` | Off | Reuse cached raw pages without downloading them again. If no cache exists, Mentor warns and performs a normal crawl. |
-| `--zip` | On | After all requested steps succeed, atomically creates `<output>/<name>.zip` with skill contents at the archive root. This option remains available for explicitness and backward compatibility. |
-| `--no-zip` | Off | Disables the default ZIP and writes only the generated skill folder. |
+| `--zip` | Off | After all requested steps succeed, atomically creates `<output>/<name>.zip` with skill contents at the archive root. The archive excludes caches and macOS metadata. |
 | `--enhance` | Off | Uses Anthropic to improve only `SKILL.md`. Requires the `enhance` extra and `ANTHROPIC_API_KEY`. |
 | `--quiet` | Off | Suppresses progress messages. Warnings, errors, and the final summary remain visible. |
 | `-h`, `--help` | — | Displays command help and exits. |
@@ -216,9 +215,8 @@ project/
 └── skills/              # generated skills safe to share
 ```
 
-Cache entries are separated by output directory, host, and start URL. ZIP output
-is created automatically after a successful rebuild. Rebuild from cached pages
-with:
+Cache entries are separated by output directory, host, and start URL. Rebuild
+from cached pages and request a clean ZIP with:
 
 ```bash
 mentor https://example.com/docs/index.html \
@@ -291,7 +289,7 @@ mentor https://example.com/guide/ \
 Run quietly in automation:
 
 ```bash
-mentor https://example.com/docs/ --quiet
+mentor https://example.com/docs/ --quiet --zip
 ```
 
 ## Error handling and troubleshooting
