@@ -27,8 +27,9 @@ skills/
 - `SKILL.md` contains vendor-neutral YAML frontmatter, a short overview, and a
   reference index.
 - `references/` contains one cleaned Markdown file per documentation page.
-- Names and descriptions are derived from the product, version, navigation tree,
-  and page headings so an agent can recognize when the skill is relevant.
+- Names and descriptions are derived from the product, version, API identifiers,
+  `##`/`###` headings, and navigation tree so an agent can recognize when the
+  skill is relevant.
 - Crawl caches and macOS metadata are never included in the skill or its ZIP.
 
 ## Features
@@ -43,7 +44,8 @@ skills/
 - Hierarchy-aware Markdown references and trigger-oriented skill metadata.
 - External raw-HTML cache for fast offline regeneration.
 - Clean, deterministic ZIP archives without `.cache`, `.DS_Store`, `._*`, or
-  `__MACOSX` entries.
+  `__MACOSX` entries. Archives are published atomically only after all requested
+  generation and enhancement steps succeed.
 - Live progress messages during long operations, with a quiet mode for scripts.
 - Optional Anthropic enhancement of `SKILL.md`; reference files remain
   deterministic.
@@ -142,7 +144,7 @@ mentor START_URL [--output DIR] [--name NAME] [--max-pages N]
 | `--delay SECONDS` | `0.5` | Delay between requests made by fallback link crawling. Must be zero or greater. |
 | `--config FILE` | None | JSON override file for include/exclude rules and CSS selectors. |
 | `--skip-scrape` | Off | Reuse cached raw pages without downloading them again. If no cache exists, Mentor warns and performs a normal crawl. |
-| `--zip` | Off | Also creates `<output>/<name>.zip`, with skill contents at the archive root. |
+| `--zip` | Off | After all requested steps succeed, atomically creates `<output>/<name>.zip` with skill contents at the archive root. |
 | `--enhance` | Off | Uses Anthropic to improve only `SKILL.md`. Requires the `enhance` extra and `ANTHROPIC_API_KEY`. |
 | `--quiet` | Off | Suppresses progress messages. Warnings, errors, and the final summary remain visible. |
 | `-h`, `--help` | — | Displays command help and exits. |
@@ -234,10 +236,11 @@ https://docs.unity3d.com/Packages/com.unity.entities@6.5/manual/index.html
 → unity-entities-6.5
 ```
 
-Descriptions identify the product and include trigger topics extracted from page
-titles and Markdown headings. They also instruct the consuming agent to open only
-relevant reference files. This makes generated skills discoverable without using
-a raw URL slug as their identity.
+Descriptions identify the product and prioritize API/concept terms extracted from
+`##`/`###` headings, inline code, and code samples. Page titles are used only as a
+fallback. They also instruct the consuming agent to open only relevant reference
+files. This makes generated skills discoverable without using a raw URL slug as
+their identity.
 
 ## JavaScript-rendered pages
 

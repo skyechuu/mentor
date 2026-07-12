@@ -1,6 +1,6 @@
 [project]
 name = "mentor"
-version = "0.3.0"
+version = "0.3.1"
 description = "Teach agents how to do stuff by turning documentation into Agent Skills"
 readme = "README.md"
 requires-python = ">=3.9"

@@ -13,19 +13,61 @@ def test_unity_package_name_keeps_product_and_dotted_version():
 
 def test_description_uses_product_aliases_and_heading_topics():
     pages = [
-        ConvertedPage("Entities package", "# Entities package\n\n## Components", []),
-        ConvertedPage("Systems", "# Systems\n\n## SystemBase and ISystem", []),
-        ConvertedPage("Entity queries", "# EntityQuery\n\n## IJobEntity", []),
-        ConvertedPage("Baking and subscenes", "# Baking\n\n## Subscenes", []),
+        ConvertedPage(
+            "Entities package",
+            "# Entities package\n\n## Components and archetypes\n\n"
+            "Use `IJobEntity` with `EntityQuery` and `Burst`.",
+            [],
+        ),
+        ConvertedPage(
+            "Systems",
+            "# Systems\n\n## System implementations\n\n"
+            "Choose `SystemBase` or `ISystem`.",
+            [],
+        ),
+        ConvertedPage(
+            "Entity workflows",
+            "# Workflows\n\n## Baking and subscenes\n\n"
+            "Record changes in an `EntityCommandBuffer`.",
+            [],
+        ),
     ]
     name, description, overview = build_skill_metadata(UNITY_URL, pages)
     assert name == "unity-entities-6.5"
     assert "Unity Entities (ECS/DOTS) 6.5" in description
-    assert "Systems" in description
-    assert "Entity queries" in description
+    for keyword in (
+        "IJobEntity",
+        "EntityQuery",
+        "SystemBase",
+        "ISystem",
+        "EntityCommandBuffer",
+        "Burst",
+        "Components and archetypes",
+        "Baking and subscenes",
+    ):
+        assert keyword in description
     assert "Open only relevant reference files" in description
     assert "docs-unity3d-com" not in description
+    assert len(description) < 1024
     assert "Unity Entities" in overview
+
+
+def test_api_identifiers_win_over_large_page_title_list():
+    pages = [
+        ConvertedPage(f"Guide page {index}", f"# Guide page {index}", [])
+        for index in range(30)
+    ]
+    pages.append(
+        ConvertedPage(
+            "Advanced APIs",
+            "## Queries\nUse `EntityQuery`, `IJobEntity`, and `SystemBase`.",
+            [],
+        )
+    )
+    _name, description, _overview = build_skill_metadata(UNITY_URL, pages)
+    assert "EntityQuery" in description
+    assert "IJobEntity" in description
+    assert "SystemBase" in description
 
 
 def test_requested_dotted_version_name_is_preserved():

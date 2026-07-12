@@ -126,3 +126,32 @@ def test_main_aborts_for_robots(tmp_path, monkeypatch, capsys):
     ) == 2
     assert "robots.txt" in capsys.readouterr().err
     assert not tmp_path.exists() or not any(tmp_path.iterdir())
+
+
+def test_zip_is_not_created_when_enhancement_fails(tmp_path, monkeypatch):
+    import doctoskill.enhance as enhance_module
+
+    monkeypatch.setattr(cli_module, "can_crawl", lambda url: True)
+    monkeypatch.setattr(
+        cli_module,
+        "fetch_llms_txt",
+        lambda root: "# Docs\n\n## Start\n\nUse `EntityQuery`.",
+    )
+    monkeypatch.setattr(
+        enhance_module,
+        "enhance_skill",
+        lambda skill_dir: (_ for _ in ()).throw(RuntimeError("API failed")),
+    )
+
+    assert cli_module.main(
+        [
+            "https://example.com/docs/index.html",
+            "--output",
+            str(tmp_path),
+            "--name",
+            "docs",
+            "--enhance",
+            "--zip",
+        ]
+    ) == 1
+    assert not (tmp_path / "docs.zip").exists()

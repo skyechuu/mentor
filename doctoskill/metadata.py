@@ -10,7 +10,38 @@ UNITY_PACKAGE_RE = re.compile(
     re.IGNORECASE,
 )
 VERSION_RE = re.compile(r"(?<!\d)v?(\d+(?:\.\d+)+(?:[-a-z0-9.]*)?)", re.IGNORECASE)
-MARKDOWN_HEADING_RE = re.compile(r"^#{1,3}\s+(.+?)\s*$", re.MULTILINE)
+MARKDOWN_HEADING_RE = re.compile(r"^#{2,3}\s+(.+?)\s*$", re.MULTILINE)
+IDENTIFIER_RE = re.compile(r"\b[A-Z][A-Za-z0-9]{2,}\b")
+API_IDENTIFIER_FRAGMENTS = (
+    "Archetype",
+    "Aspect",
+    "Baker",
+    "Baking",
+    "BlobAsset",
+    "Buffer",
+    "Burst",
+    "Command",
+    "Component",
+    "Entity",
+    "Job",
+    "Query",
+    "SubScene",
+    "System",
+)
+IGNORED_IDENTIFIERS = {
+    "API",
+    "CLI",
+    "HTML",
+    "HTTP",
+    "HTTPS",
+    "Markdown",
+    "Mentor",
+    "NOTE",
+    "SKILL",
+    "System",
+    "TODO",
+    "URL",
+}
 GENERIC_TOPICS = {
     "api",
     "documentation",
@@ -85,31 +116,71 @@ def derive_skill_name(start_url: str, product_title: Optional[str] = None) -> st
     return name
 
 
-def _topic_candidates(pages: Iterable[ConvertedPage]) -> Iterable[str]:
+def _api_identifier_candidates(pages: Iterable[ConvertedPage]) -> Iterable[str]:
+    seen: set[str] = set()
     for page in pages:
-        yield page.title
+        for identifier in IDENTIFIER_RE.findall(page.markdown):
+            if identifier in seen or identifier in IGNORED_IDENTIFIERS:
+                continue
+            is_interface = identifier.startswith("I") and identifier[1:2].isupper()
+            is_acronym = identifier.isupper()
+            has_api_fragment = any(
+                fragment.lower() in identifier.lower()
+                for fragment in API_IDENTIFIER_FRAGMENTS
+            )
+            if is_interface or is_acronym or has_api_fragment:
+                seen.add(identifier)
+                yield identifier
+
+
+def _heading_candidates(pages: Iterable[ConvertedPage]) -> Iterable[str]:
     for page in pages:
         yield from MARKDOWN_HEADING_RE.findall(page.markdown)
 
 
-def extract_topics(pages: list[ConvertedPage], product_label: str, limit: int = 14) -> list[str]:
+def _page_title_candidates(pages: Iterable[ConvertedPage]) -> Iterable[str]:
+    for page in pages:
+        yield page.title
+
+
+def extract_topics(pages: list[ConvertedPage], product_label: str, limit: int = 16) -> list[str]:
     topics: list[str] = []
     seen: set[str] = set()
     product_words = set(slugify(product_label).split("-"))
-    for candidate in _topic_candidates(pages):
+
+    def add_candidate(candidate: str) -> bool:
         candidate = re.sub(r"\[([^]]+)\]\([^)]*\)", r"\1", candidate)
         candidate = re.sub(r"[`*_#]", "", candidate)
         candidate = re.sub(r"\s+", " ", candidate).strip(" :-–—")
         key = slugify(candidate).replace("-", " ")
-        if not candidate or len(candidate) > 64 or key in GENERIC_TOPICS or key in seen:
-            continue
+        if (
+            not candidate
+            or len(candidate) > 48
+            or key in GENERIC_TOPICS
+            or key in seen
+            or key.endswith(" package")
+        ):
+            return False
         candidate_words = set(slugify(candidate).split("-"))
         if candidate_words and candidate_words <= product_words:
-            continue
+            return False
         seen.add(key)
         topics.append(candidate)
-        if len(topics) >= limit:
+        return True
+
+    identifier_limit = min(10, limit)
+    identifier_count = 0
+    for candidate in _api_identifier_candidates(pages):
+        if add_candidate(candidate):
+            identifier_count += 1
+        if identifier_count >= identifier_limit:
             break
+
+    for candidates in (_heading_candidates(pages), _page_title_candidates(pages)):
+        for candidate in candidates:
+            add_candidate(candidate)
+            if len(topics) >= limit:
+                return topics
     return topics
 
 
