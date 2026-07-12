@@ -57,3 +57,28 @@ def test_crawl_reports_live_progress():
         "Crawling page 1/2: https://example.com/docs/index.html"
     )
     assert messages[1].startswith("Crawling page 2/2:")
+
+
+def test_crawl_follows_article_links_not_global_navigation():
+    pages = {
+        "https://example.com/manual/ui.html": """
+          <header><a href='index.html'>Whole manual</a></header>
+          <div class='content'><a href='index.html'>Global menu</a></div>
+          <div class='section'><h1>UI</h1>
+            <a href='visual-elements.html'>Visual elements</a>
+            <a href='events.html'>Events</a>
+          </div>
+        """,
+        "https://example.com/manual/visual-elements.html": "<h1>Visual elements</h1>",
+        "https://example.com/manual/events.html": "<h1>Events</h1>",
+    }
+    order = crawl_path_prefix(
+        "https://example.com/manual/ui.html",
+        fetch_fn=pages.__getitem__,
+        sleep_fn=lambda _seconds: None,
+    )
+    assert order == [
+        "https://example.com/manual/ui.html",
+        "https://example.com/manual/visual-elements.html",
+        "https://example.com/manual/events.html",
+    ]

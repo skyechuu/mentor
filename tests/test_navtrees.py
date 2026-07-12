@@ -32,3 +32,28 @@ def test_generic_navtree_and_explicit_selector():
     )
     assert explicit is not None
     assert explicit.children[0].title == "One"
+
+
+def test_generic_navtree_rejects_unity_language_selector_false_positive():
+    html = """<div class='sidebar'><ul>
+      <li><a href='/Manual/UIElements.html'>English</a></li>
+      <li><a href='/cn/current/Manual/UIElements.html'>中文</a></li>
+      <li><a href='/ja/current/Manual/UIElements.html'>日本語</a></li>
+      <li><a href='/kr/current/Manual/UIElements.html'>한국어</a></li>
+    </ul></div>"""
+    assert parse_generic_navtree(
+        html,
+        "https://docs.unity3d.com/Manual/UIElements.html",
+    ) is None
+
+
+def test_generic_navtree_prunes_out_of_scope_links():
+    html = """<nav><ul>
+      <li><a href='intro.html'>Intro</a></li>
+      <li><a href='setup.html'>Setup</a></li>
+      <li><a href='api.html'>API</a></li>
+      <li><a href='/other/blog.html'>Blog</a></li>
+    </ul></nav>"""
+    root = parse_generic_navtree(html, BASE)
+    assert root is not None
+    assert [node.title for node in root.children] == ["Intro", "Setup", "API"]

@@ -4,7 +4,8 @@ from typing import Optional
 from bs4 import BeautifulSoup
 from markdownify import markdownify
 
-CONTENT_SELECTOR_FALLBACKS = "main, article, [role=main], #content, .content"
+from doctoskill.content import select_content
+
 BOILERPLATE_SELECTOR = (
     "nav, header, footer, aside, script, style, noscript, form, "
     "[aria-hidden=true], .advertisement, .ads, .cookie-banner"
@@ -28,9 +29,7 @@ def _extract_title(soup: BeautifulSoup) -> str:
 def convert_page(html: str, content_selector: Optional[str] = None) -> tuple[str, str]:
     soup = BeautifulSoup(html, "html.parser")
     title = _extract_title(soup)
-    content = soup.select_one(content_selector) if content_selector else soup.select_one(
-        CONTENT_SELECTOR_FALLBACKS
-    )
+    content = select_content(soup, content_selector)
     if content is None:
         content = soup.body or soup
     for tag in content.select(BOILERPLATE_SELECTOR):

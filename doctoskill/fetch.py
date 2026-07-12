@@ -1,9 +1,8 @@
 from bs4 import BeautifulSoup
 from typing import Optional
 
+from doctoskill.content import select_content
 from doctoskill.robots import DEFAULT_USER_AGENT
-
-CONTENT_SELECTOR_FALLBACKS = "main, article, [role=main], #content, .content"
 
 
 class CacheMissError(Exception):
@@ -20,12 +19,9 @@ def looks_like_js_shell(
     min_length: int = 200,
 ) -> bool:
     soup = BeautifulSoup(html, "html.parser")
-    if content_selector:
-        element = soup.select_one(content_selector)
-        if element is None:
-            return True
-    else:
-        element = soup.select_one(CONTENT_SELECTOR_FALLBACKS) or soup.body
+    element = select_content(soup, content_selector)
+    if content_selector and element is None:
+        return True
     text = element.get_text(" ", strip=True) if element else ""
     if len(text) >= min_length:
         return False

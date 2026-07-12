@@ -29,3 +29,16 @@ def test_convert_strips_docfx_table_of_contents_toggle():
     )
     assert "Show / Hide Table of Contents" not in markdown
     assert "Useful content." in markdown
+
+
+def test_convert_chooses_h1_article_over_unrelated_content_class():
+    html = """<html><body>
+      <div class='content'><a href='/'>Global menu</a></div>
+      <div class='content-block'><div class='content'><div class='section'>
+        <h1>UI Toolkit</h1><p>VisualElement, UXML, and USS documentation.</p>
+      </div></div></div>
+    </body></html>"""
+    title, markdown = convert_page(html)
+    assert title == "UI Toolkit"
+    assert "VisualElement, UXML, and USS" in markdown
+    assert "Global menu" not in markdown

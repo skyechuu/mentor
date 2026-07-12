@@ -92,6 +92,35 @@ def test_quiet_suppresses_progress_but_keeps_summary(tmp_path, monkeypatch, caps
     assert not (tmp_path / "docs.zip").exists()
 
 
+def test_manual_description_overrides_generated_description(tmp_path, monkeypatch):
+    manual_description = (
+        "Complete Unity UI Toolkit docs. Use for VisualElement, UXML, USS, "
+        "UI Builder, event propagation, binding, and custom controls."
+    )
+    monkeypatch.setattr(cli_module, "can_crawl", lambda url: True)
+    monkeypatch.setattr(
+        cli_module,
+        "fetch_llms_txt",
+        lambda root: "# UI Toolkit\n\n## Start\n\nStart here.",
+    )
+    assert cli_module.main(
+        [
+            "https://docs.unity3d.com/Manual/UIElements.html",
+            "--output",
+            str(tmp_path),
+            "--name",
+            "unity-ui-toolkit",
+            "--description",
+            manual_description,
+        ]
+    ) == 0
+    skill_md = (tmp_path / "unity-ui-toolkit" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert manual_description in skill_md
+    assert "sourced from" not in skill_md
+
+
 def test_skip_scrape_uses_cache_without_discovery_network(tmp_path, monkeypatch):
     start = "https://example.com/manual/index.html"
     child = "https://example.com/manual/start.html"

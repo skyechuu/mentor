@@ -131,7 +131,8 @@ Skill written to: skills/example-2.0
 
 ```text
 mentor START_URL [--output DIR] [--name NAME] [--max-pages N]
-                 [--delay SECONDS] [--config FILE] [--skip-scrape]
+                 [--description TEXT] [--delay SECONDS] [--config FILE]
+                 [--skip-scrape]
                  [--zip] [--enhance] [--quiet]
 ```
 
@@ -140,6 +141,7 @@ mentor START_URL [--output DIR] [--name NAME] [--max-pages N]
 | `START_URL` | Required | First documentation page and crawl root. Must be an absolute `http://` or `https://` URL. |
 | `--output DIR` | `./skills` | Parent directory in which the generated skill folder is written. |
 | `--name NAME` | Auto-detected | Overrides the generated skill name. Names are normalized to lowercase and may contain letters, numbers, hyphens, and version dots. |
+| `--description TEXT` | Auto-generated | Uses the supplied text verbatim as the YAML `description`. Use this when you want full control over agent trigger wording. Empty descriptions are rejected. |
 | `--max-pages N` | `500` | Safety cap on discovered and converted pages. Must be at least `1`. |
 | `--delay SECONDS` | `0.5` | Delay between requests made by fallback link crawling. Must be zero or greater. |
 | `--config FILE` | None | JSON override file for include/exclude rules and CSS selectors. |
@@ -241,6 +243,16 @@ Descriptions identify the product and prioritize API/concept terms extracted fro
 fallback. They also instruct the consuming agent to open only relevant reference
 files. This makes generated skills discoverable without using a raw URL slug as
 their identity.
+
+Override the generated trigger description when you want exact wording:
+
+```bash
+mentor https://docs.unity3d.com/Manual/UIElements.html \
+  --name unity-ui-toolkit \
+  --description "Complete Unity UI Toolkit docs. Use for VisualElement, UXML, USS, UI Builder, runtime UI, editor UI, event propagation, binding, and custom controls. Open only relevant reference files." \
+  --output ./skills \
+  --zip
+```
 
 ## JavaScript-rendered pages
 

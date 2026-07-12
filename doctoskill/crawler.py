@@ -4,6 +4,7 @@ from collections import deque
 import requests
 from bs4 import BeautifulSoup
 
+from doctoskill.content import select_content
 from doctoskill.robots import DEFAULT_USER_AGENT
 from doctoskill.urlutil import (
     canonicalize_url,
@@ -32,6 +33,7 @@ def crawl_path_prefix(
     sleep_fn=None,
     allowed_fn=None,
     progress_fn=None,
+    content_selector=None,
 ) -> list[str]:
     """Breadth-first crawl constrained to the start URL's origin and directory."""
     if max_pages < 1:
@@ -61,7 +63,12 @@ def crawl_path_prefix(
             continue
 
         soup = BeautifulSoup(html, "html.parser")
-        for anchor in soup.find_all("a", href=True):
+        content = select_content(soup, content_selector)
+        if content is None:
+            content = soup.body or soup
+        for boilerplate in content.select("nav, header, footer, aside, script, style"):
+            boilerplate.decompose()
+        for anchor in content.find_all("a", href=True):
             link = resolve_link(url, anchor.get("href"))
             if (
                 link

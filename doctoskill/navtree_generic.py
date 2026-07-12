@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from typing import Optional
 
 from doctoskill.navtree import NavNode, iter_nodes
-from doctoskill.urlutil import resolve_link
+from doctoskill.urlutil import is_under_prefix, path_prefix, resolve_link
 
 MIN_LINKS = 3
 
@@ -22,6 +22,30 @@ def _walk(ul) -> list[NavNode]:
             )
         )
     return nodes
+
+
+def _in_scope_link_count(ul, base_url: str) -> int:
+    prefix = path_prefix(base_url)
+    count = 0
+    for anchor in ul.find_all("a", href=True):
+        url = resolve_link(base_url, anchor.get("href"))
+        if url and is_under_prefix(url, prefix):
+            count += 1
+    return count
+
+
+def _prune_out_of_scope(nodes: list[NavNode], base_url: str) -> list[NavNode]:
+    prefix = path_prefix(base_url)
+    kept: list[NavNode] = []
+    for node in nodes:
+        node.children = _prune_out_of_scope(node.children, base_url)
+        in_scope = bool(node.url and is_under_prefix(node.url, prefix))
+        if in_scope:
+            kept.append(node)
+        elif node.children:
+            node.url = None
+            kept.append(node)
+    return kept
 
 
 def parse_generic_navtree(
@@ -47,7 +71,11 @@ def parse_generic_navtree(
         ul = candidate if candidate.name == "ul" else candidate.find("ul")
         if ul is None:
             continue
-        count = len(ul.find_all("a", href=True))
+        count = (
+            len(ul.find_all("a", href=True))
+            if nav_selector
+            else _in_scope_link_count(ul, base_url)
+        )
         if count > best_count:
             best_ul, best_count = ul, count
 
@@ -59,4 +87,8 @@ def parse_generic_navtree(
     for node in iter_nodes(root):
         if node.url:
             node.url = resolve_link(base_url, node.url)
+    if not nav_selector:
+        root.children = _prune_out_of_scope(root.children, base_url)
+        if not root.children:
+            return None
     return root
