@@ -16,6 +16,7 @@ from doctoskill.llms_txt import fetch_llms_txt, parse_llms_txt
 from doctoskill.metadata import build_skill_metadata, derive_skill_name
 from doctoskill.navtree_docfx import parse_docfx_toc
 from doctoskill.navtree_generic import parse_generic_navtree
+from doctoskill.progress import ProgressReporter
 from doctoskill.robots import can_crawl
 from doctoskill.sitemap import fetch_sitemap_urls, filter_by_prefix
 from doctoskill.slugify import slugify
@@ -38,6 +39,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-scrape", action="store_true", help="Use cached pages only")
     parser.add_argument("--zip", action="store_true", help="Also write a .zip package")
     parser.add_argument("--enhance", action="store_true", help="Polish SKILL.md with Anthropic")
+    parser.add_argument("--quiet", action="store_true", help="Suppress progress messages")
     return parser
 
 
@@ -57,8 +59,10 @@ def _discover_from_navtree(
     use_cache_only: bool,
     content_selector: Optional[str],
     nav_selector: Optional[str],
+    progress: ProgressReporter,
 ):
     toc_url = path_prefix(start_url) + "toc.html"
+    progress.log(f"Checking for a DocFX navigation tree: {toc_url}")
     try:
         toc_html = fetch_page(
             toc_url,
@@ -66,12 +70,15 @@ def _discover_from_navtree(
             use_cache_only=use_cache_only,
             content_selector=content_selector,
         )
-    except Exception:
+    except Exception as exc:
+        progress.log(f"DocFX navigation tree unavailable: {exc}")
         toc_html = None
     navtree = parse_docfx_toc(toc_html, start_url) if toc_html else None
     if navtree is not None:
+        progress.log("Found a DocFX navigation tree.")
         return navtree
 
+    progress.log("Checking the start page for a generic sidebar/navigation tree.")
     try:
         index_html = fetch_page(
             start_url,
@@ -79,9 +86,16 @@ def _discover_from_navtree(
             use_cache_only=use_cache_only,
             content_selector=content_selector,
         )
-    except Exception:
+    except Exception as exc:
+        progress.log(f"Generic navigation page unavailable: {exc}")
         return None
-    return parse_generic_navtree(index_html, start_url, nav_selector=nav_selector)
+    navtree = parse_generic_navtree(index_html, start_url, nav_selector=nav_selector)
+    progress.log(
+        "Found a generic navigation tree."
+        if navtree is not None
+        else "No usable navigation tree found."
+    )
+    return navtree
 
 
 def _validate_args(parser: argparse.ArgumentParser, args) -> None:
@@ -111,6 +125,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
     _validate_args(parser, args)
+    progress = ProgressReporter(enabled=not args.quiet)
+    progress.log(f"Starting crawl: {args.start_url}")
 
     try:
         config = load_config(args.config)
@@ -121,11 +137,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     url_parts = urlsplit(args.start_url)
     old_url_slug_name = slugify(f"{url_parts.netloc}{url_parts.path}")
     legacy_skill_names = [args.name or derive_skill_name(args.start_url), old_url_slug_name]
+    progress.log("Checking robots.txt permissions.")
     if not can_crawl(args.start_url):
         print(f"robots.txt disallows crawling {args.start_url}", file=sys.stderr)
         return 2
+    progress.log("robots.txt permits the start URL.")
 
     cache = _prepare_cache(args.output, args.start_url, legacy_skill_names)
+    progress.log(f"Crawl cache: {cache.cache_dir}")
     use_cache_only = args.skip_scrape and cache.has_any()
     if args.skip_scrape and not use_cache_only:
         print(
@@ -142,24 +161,31 @@ def main(argv: Optional[list[str]] = None) -> int:
     # preferred; otherwise the URL index supplies the previous page set.
     navtree = None
     if use_cache_only:
+        progress.log("Using cached pages only (--skip-scrape).")
         navtree = _discover_from_navtree(
             args.start_url,
             cache,
             True,
             config.content_selector,
             config.nav_selector,
+            progress,
         )
         llms_text = None
     else:
+        progress.log("Checking for llms-full.txt or llms.txt.")
         llms_text = fetch_llms_txt(domain_root(args.start_url))
 
     llms_sections = parse_llms_txt(llms_text) if llms_text else []
     if llms_sections:
         strategy = "llms.txt"
         found = len(llms_sections)
-        for title, content in llms_sections[: args.max_pages]:
+        progress.log(f"Using llms.txt discovery: {found} sections found.")
+        for index, (title, content) in enumerate(llms_sections[: args.max_pages], start=1):
+            progress.log(f"Preparing llms.txt section {index}/{min(found, args.max_pages)}: {title}")
             pages.append(ConvertedPage(title=title, markdown=content, path_segments=[]))
     else:
+        if not use_cache_only:
+            progress.log("No usable llms.txt sections found; trying navigation discovery.")
         if navtree is None:
             navtree = _discover_from_navtree(
                 args.start_url,
@@ -167,6 +193,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 use_cache_only,
                 config.content_selector,
                 config.nav_selector,
+                progress,
             )
 
         discovered_urls: list[str] = []
@@ -174,6 +201,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         if navtree is not None:
             strategy = "nav-tree"
             entries = flatten_navtree(navtree)
+            progress.log(f"Navigation tree discovered {len(entries)} page entries.")
             discovered_urls = [url for url, _segments, _title in entries]
             url_meta = {url: (segments, title) for url, segments, title in entries}
         elif use_cache_only:
@@ -183,20 +211,25 @@ def main(argv: Optional[list[str]] = None) -> int:
             discovered_urls = [
                 url for url in cache.urls() if url != toc_url and is_under_prefix(url, prefix)
             ]
+            progress.log(f"Cache index contains {len(discovered_urls)} in-scope pages.")
         else:
             prefix = path_prefix(args.start_url)
+            progress.log("Checking sitemap.xml.")
             sitemap_urls = fetch_sitemap_urls(domain_root(args.start_url))
             filtered = filter_by_prefix(sitemap_urls, prefix) if sitemap_urls else []
             if filtered:
                 strategy = "sitemap"
                 discovered_urls = filtered
+                progress.log(f"Sitemap discovery found {len(filtered)} in-scope pages.")
             else:
                 strategy = "path-prefix-crawl"
+                progress.log("No usable sitemap entries; starting path-prefix link crawl.")
                 discovered_urls = crawl_path_prefix(
                     args.start_url,
                     max_pages=args.max_pages,
                     delay=args.delay,
                     fetch_fn=lambda url: _fetch_for_crawl(url, cache, config.content_selector),
+                    progress_fn=progress.log,
                 )
 
         discovered_urls = list(
@@ -207,8 +240,10 @@ def main(argv: Optional[list[str]] = None) -> int:
             )
         )[: args.max_pages]
         found = len(discovered_urls)
+        progress.log(f"Converting {found} discovered pages.")
 
-        for url in discovered_urls:
+        for index, url in enumerate(discovered_urls, start=1):
+            progress.log(f"Fetching and converting page {index}/{found}: {url}")
             try:
                 html = fetch_page(
                     url,
@@ -230,6 +265,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             else:
                 segments = path_segments_from_url(url, args.start_url)
             pages.append(ConvertedPage(title, markdown, segments, url))
+            progress.log(f"Converted page {index}/{found}: {title}")
 
     if not pages:
         print("No documentation pages could be converted.", file=sys.stderr)
@@ -240,9 +276,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         pages,
         requested_name=args.name,
     )
+    progress.log(f"Assembling {len(pages)} pages into skill: {skill_name}")
     skill_dir = assemble_skill(args.output, skill_name, description, overview, pages)
 
     if args.enhance:
+        progress.log("Enhancing SKILL.md with the Anthropic API.")
         try:
             from doctoskill.enhance import enhance_skill
 
@@ -251,7 +289,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             print(f"Enhancement failed: {exc}", file=sys.stderr)
             return 1
     if args.zip:
-        zip_skill_folder(skill_dir)
+        progress.log("Creating clean ZIP package.")
+        zip_path = zip_skill_folder(skill_dir)
+        progress.log(f"ZIP written to: {zip_path}")
+
+    progress.log("Finished successfully.")
 
     print(f"Strategy: {strategy}")
     print(f"Pages found: {found}")

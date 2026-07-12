@@ -46,7 +46,7 @@ def test_main_navtree_end_to_end(tmp_path, monkeypatch):
     assert (tmp_path / "unity-entities.zip").exists()
 
 
-def test_main_uses_llms_txt_without_page_fetches(tmp_path, monkeypatch):
+def test_main_uses_llms_txt_without_page_fetches(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli_module, "can_crawl", lambda url: True)
     monkeypatch.setattr(
         cli_module,
@@ -62,6 +62,32 @@ def test_main_uses_llms_txt_without_page_fetches(tmp_path, monkeypatch):
         ["https://example.com/docs/index.html", "--output", str(tmp_path), "--name", "docs"]
     ) == 0
     assert (tmp_path / "docs" / "references" / "start.md").exists()
+    progress = capsys.readouterr().err
+    assert "[doctoskill] Starting crawl:" in progress
+    assert "Using llms.txt discovery: 2 sections found." in progress
+    assert "Finished successfully." in progress
+
+
+def test_quiet_suppresses_progress_but_keeps_summary(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli_module, "can_crawl", lambda url: True)
+    monkeypatch.setattr(
+        cli_module,
+        "fetch_llms_txt",
+        lambda root: "# Docs\n\n## Start\n\nStart here.",
+    )
+    assert cli_module.main(
+        [
+            "https://example.com/docs/index.html",
+            "--output",
+            str(tmp_path),
+            "--name",
+            "docs",
+            "--quiet",
+        ]
+    ) == 0
+    captured = capsys.readouterr()
+    assert "[doctoskill]" not in captured.err
+    assert "Pages converted: 1" in captured.out
 
 
 def test_skip_scrape_uses_cache_without_discovery_network(tmp_path, monkeypatch):

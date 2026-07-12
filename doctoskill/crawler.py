@@ -31,6 +31,7 @@ def crawl_path_prefix(
     fetch_fn=None,
     sleep_fn=None,
     allowed_fn=None,
+    progress_fn=None,
 ) -> list[str]:
     """Breadth-first crawl constrained to the start URL's origin and directory."""
     if max_pages < 1:
@@ -38,6 +39,7 @@ def crawl_path_prefix(
     fetch_fn = fetch_fn or _default_fetch
     sleep_fn = sleep_fn or time.sleep
     allowed_fn = allowed_fn or (lambda _url: True)
+    progress_fn = progress_fn or (lambda _message: None)
     start_url = canonicalize_url(start_url)
     prefix = path_prefix(start_url)
 
@@ -48,11 +50,14 @@ def crawl_path_prefix(
     while queue and len(order) < max_pages:
         url = queue.popleft()
         if not allowed_fn(url):
+            progress_fn(f"Skipping disallowed URL: {url}")
             continue
         order.append(url)
+        progress_fn(f"Crawling page {len(order)}/{max_pages}: {url}")
         try:
             html = fetch_fn(url)
-        except Exception:
+        except Exception as exc:
+            progress_fn(f"Crawl fetch failed for {url}: {exc}")
             continue
 
         soup = BeautifulSoup(html, "html.parser")

@@ -42,3 +42,18 @@ def test_crawl_skips_disallowed_pages():
     )
     assert "https://example.com/docs/a.html" not in order
     assert "https://example.com/docs/c.html" not in order
+
+
+def test_crawl_reports_live_progress():
+    messages = []
+    crawl_path_prefix(
+        "https://example.com/docs/index.html",
+        max_pages=2,
+        fetch_fn=PAGES.__getitem__,
+        sleep_fn=lambda _seconds: None,
+        progress_fn=messages.append,
+    )
+    assert messages[0] == (
+        "Crawling page 1/2: https://example.com/docs/index.html"
+    )
+    assert messages[1].startswith("Crawling page 2/2:")

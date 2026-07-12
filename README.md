@@ -36,6 +36,10 @@ cache outside the generated output under a sibling `.doctoskill-cache/` director
 use `--skip-scrape` for an offline conversion rerun. Generated skill folders and
 ZIP archives never contain crawl caches, `.DS_Store`, `._*`, or `__MACOSX` files.
 
+Progress is printed to stderr throughout discovery, crawling, conversion, and
+packaging so long runs remain visibly active. Pass `--quiet` to suppress these
+messages in scripts while keeping warnings, errors, and the final summary.
+
 For sites with unusual markup, pass a JSON config:
 
 ```json
