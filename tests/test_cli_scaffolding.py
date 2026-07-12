@@ -25,7 +25,20 @@ def test_mentor_public_version_matches_compatibility_package():
     import mentor
     import doctoskill
 
-    assert mentor.__version__ == doctoskill.__version__ == "0.3.4"
+    assert mentor.__version__ == doctoskill.__version__ == "0.3.5"
+
+
+def test_keyboard_interrupt_exits_cleanly(monkeypatch, capsys):
+    import doctoskill.__main__ as main_module
+
+    def interrupt():
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(main_module, "main", interrupt)
+    assert main_module.run() == 130
+    captured = capsys.readouterr()
+    assert "[mentor] Interrupted." in captured.err
+    assert "Traceback" not in captured.err
 
 
 def test_converted_page_defaults():

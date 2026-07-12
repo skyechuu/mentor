@@ -46,6 +46,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", default=None, help="JSON override config")
     parser.add_argument("--skip-scrape", action="store_true", help="Use cached pages only")
     parser.add_argument(
+        "--broad-crawl",
+        action="store_true",
+        help="Disable automatic section-aware filtering during link crawling",
+    )
+    parser.add_argument(
         "--zip",
         action="store_true",
         help="Write a clean .zip package after successful generation",
@@ -234,7 +239,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         else:
             prefix = path_prefix(args.start_url)
             progress.log("Checking sitemap.xml.")
-            sitemap_urls = fetch_sitemap_urls(domain_root(args.start_url))
+            sitemap_urls = fetch_sitemap_urls(
+                domain_root(args.start_url),
+                prefix=prefix,
+                max_urls=args.max_pages,
+                progress_fn=progress.log,
+            )
             filtered = filter_by_prefix(sitemap_urls, prefix) if sitemap_urls else []
             if filtered:
                 strategy = "sitemap"
@@ -250,6 +260,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                     fetch_fn=lambda url: _fetch_for_crawl(url, cache, config.content_selector),
                     progress_fn=progress.log,
                     content_selector=config.content_selector,
+                    semantic_scope=not args.broad_crawl,
                 )
 
         discovered_urls = list(

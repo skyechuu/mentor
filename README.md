@@ -132,7 +132,7 @@ Skill written to: skills/example-2.0
 ```text
 mentor START_URL [--output DIR] [--name NAME] [--max-pages N]
                  [--description TEXT] [--delay SECONDS] [--config FILE]
-                 [--skip-scrape]
+                 [--skip-scrape] [--broad-crawl]
                  [--zip] [--enhance] [--quiet]
 ```
 
@@ -146,6 +146,7 @@ mentor START_URL [--output DIR] [--name NAME] [--max-pages N]
 | `--delay SECONDS` | `0.5` | Delay between requests made by fallback link crawling. Must be zero or greater. |
 | `--config FILE` | None | JSON override file for include/exclude rules and CSS selectors. |
 | `--skip-scrape` | Off | Reuse cached raw pages without downloading them again. If no cache exists, Mentor warns and performs a normal crawl. |
+| `--broad-crawl` | Off | Disables section-aware link filtering. Use only when a documentation section intentionally needs to traverse unrelated cross-links under the same URL prefix. |
 | `--zip` | Off | After all requested steps succeed, atomically creates `<output>/<name>.zip` with skill contents at the archive root. The archive excludes caches and macOS metadata. |
 | `--enhance` | Off | Uses Anthropic to improve only `SKILL.md`. Requires the `enhance` extra and `ANTHROPIC_API_KEY`. |
 | `--quiet` | Off | Suppresses progress messages. Warnings, errors, and the final summary remain visible. |
@@ -171,10 +172,13 @@ Mentor tries strategies in priority order and uses the first useful result:
 3. **`sitemap.xml`** — loads sitemap URLs and keeps only entries under the start
    URL's path prefix.
 4. **Path-prefix crawl** — breadth-first follows links on the same domain and
-   under the same path prefix, up to `--max-pages`.
+   under the same path prefix, up to `--max-pages`. For flat documentation sites,
+   Mentor learns section seeds, URL families, nested directories, and topic terms
+   from the supplied root page so cross-links do not expand into the entire site.
 
 One run intentionally creates one skill for one crawl root. Use separate runs for
 independent documentation sections such as a user manual and API reference.
+Pass `--broad-crawl` if the automatic section boundary is too restrictive.
 
 ## Override configuration
 
@@ -315,10 +319,14 @@ mentor https://example.com/docs/ --quiet --zip
   browser dependencies.
 - If automatic content extraction includes navigation or misses the article,
   set `content_selector` in a config file.
+- Sitemap indexes are expanded within byte, child-count, and time limits. Oversized
+  maps are reported and skipped so Mentor can fall back instead of appearing to
+  hang.
 - If discovery selects the wrong sidebar, set `nav_selector`, `include`, or
   `exclude`.
 - Use the default progress output to identify which URL or discovery phase is
   slow. Add `--quiet` only when logs are not wanted.
+- Pressing Ctrl-C exits cleanly with status `130` and no Python traceback.
 
 ## Security and privacy
 

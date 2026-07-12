@@ -1,6 +1,6 @@
 import sys
 
-from doctoskill.cli import main
+from doctoskill.__main__ import run
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run())
