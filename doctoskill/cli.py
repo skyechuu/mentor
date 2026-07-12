@@ -40,7 +40,19 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--delay", type=float, default=0.5, help="Delay between crawl requests")
     parser.add_argument("--config", default=None, help="JSON override config")
     parser.add_argument("--skip-scrape", action="store_true", help="Use cached pages only")
-    parser.add_argument("--zip", action="store_true", help="Also write a .zip package")
+    parser.set_defaults(zip=True)
+    parser.add_argument(
+        "--zip",
+        dest="zip",
+        action="store_true",
+        help="Write a clean .zip package (default)",
+    )
+    parser.add_argument(
+        "--no-zip",
+        dest="zip",
+        action="store_false",
+        help="Do not write a .zip package",
+    )
     parser.add_argument("--enhance", action="store_true", help="Polish SKILL.md with Anthropic")
     parser.add_argument("--quiet", action="store_true", help="Suppress progress messages")
     return parser
